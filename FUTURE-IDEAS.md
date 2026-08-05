@@ -1,29 +1,31 @@
-ideas
+# Future Ideas
 
-- customize your square
-- limit of players
-- vertical scrolling scoreboard
-- time limit???
-- crown above previous rounds winner (resets to current winner as others win)
-- store map data (from random generator algorithm) in a db and use a key / hash of some sort to re-access it at another time (mainly for highscores or time-trials)
-- implement random game mode picker once more than 1 game mode is done
-- attacks?? Some way to kill others and make them respawn. This system can be used for many things
-- arrows keys function as wasd
-- funny quotes on loading screens
-- fix up the initial loading screen to include the socket connection so you dont wait on a blank screen to join the game
+## Gameplay Improvements
 
-game modes
+- Customize your square / character appearance further
+- Player limit per room
+- Vertical scrolling scoreboard
+- Time limit per round
+- Crown above previous round's winner (updates as others win)
+- Store map data (from random generator) in a database with a key/hash for highscores or time-trials
+- Random game mode picker once more modes are implemented
+- Attacks / combat system so players can eliminate others and force respawns
+- Arrow keys as alternative to WASD
+- Funny quotes on loading screens
+- Improve initial loading screen to include socket connection status (avoid blank screen while joining)
 
-- coin collect (main game already)
-- capture the flag
-- coin collection battle royale (might rely on player limit to block connections to losers until the round is done)
+## Game Modes
 
-styling stuff
+- Coin Collect (current main mode)
+- Capture the Flag
+- Coin Collection Battle Royale (could use player limit to block connections for eliminated players until the round ends)
 
-- environment styling
-- make loading screen between rounds prettier
+## Styling & UX
 
-unprobables
+- Better environment / map styling
+- Make the loading screen between rounds prettier
 
-- emotes
-- square career mode full of jokes
+## Unlikely / Fun Ideas
+
+- Emotes
+- Square career mode full of jokes
