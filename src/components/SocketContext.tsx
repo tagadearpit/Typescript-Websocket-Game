@@ -2,19 +2,14 @@ import { createContext, useContext, useEffect, useState } from "react";
 import SocketIOClient, { Socket } from "socket.io-client";
 
 const SocketContext = createContext<Socket>({} as Socket);
-const SocketUpdateContext = createContext<Socket>({} as Socket);
 
 export const useSocket = () => {
   return useContext(SocketContext);
 };
 
-export const useUpdateSocket = () => {
-  return useContext(SocketUpdateContext);
-};
-
 interface SocketProviderProps {
-  name: String;
-  colour: String;
+  name: string;
+  colour: string;
   children: React.ReactNode;
 }
 
@@ -27,7 +22,9 @@ const SocketProvider: React.FC<SocketProviderProps> = ({
 
   useEffect(() => {
     console.log("Context Mounted");
+    // Trigger the API route that initializes the Socket.IO server
     fetch("/api/socket");
+
     const newSocket = SocketIOClient(window.location.origin, {
       query: { name, colour },
     });
