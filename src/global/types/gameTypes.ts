@@ -1,3 +1,5 @@
+// Core game type definitions
+
 export interface ControlsInterface {
   up: boolean;
   down: boolean;
