@@ -4,8 +4,8 @@ A real-time multiplayer cube collection game built with **Next.js**, **TypeScrip
 
 Players join a shared world, customize their character, and compete to collect coins. The game uses WebSockets for live multiplayer synchronization.
 
-**Live Demo** (when the server is running):  
-https://ryanc268-typescript-websocket-game.up.railway.app/
+**Live Demo**:  
+[https://typescript-websocket-game.up.railway.app](https://typescript-websocket-game.up.railway.app)
 
 ## Features
 
