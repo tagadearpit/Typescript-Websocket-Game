@@ -1,8 +1,8 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import GameBoard from "../components/GameBoard";
-import LoadingScreen from "../components/LoadingScreen";
+import GameBoard from "./GameBoard";
+import LoadingScreen from "./LoadingScreen";
 import resourceJson from "../resources/gameresources.json";
-import { useSocket } from "../components/SocketContext";
+import { useSocket } from "./SocketContext";
 
 interface GameScreenProps {
   isCustomized: boolean;
@@ -13,11 +13,12 @@ const GameScreen: React.FC<GameScreenProps> = ({
   isCustomized,
   setIsCustomized,
 }) => {
-  let socket = useSocket();
+  const socket = useSocket();
 
   const [isPreLoading, setIsPreLoading] = useState<boolean>(true);
   const [isConnecting, setIsConnecting] = useState<boolean>(true);
 
+  // Pre-cache game images (blocks + character sprites)
   useEffect(() => {
     let characterResources: string[] = [];
     Object.values(resourceJson.characters).forEach((val) => {
@@ -27,6 +28,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
     cacheImages([...resourceJson.blocks, ...characterResources]);
   }, []);
 
+  // Listen for successful socket connection
   useEffect(() => {
     if (Object.keys(socket).length > 0) {
       socket.on("connect", () => {
@@ -36,9 +38,9 @@ const GameScreen: React.FC<GameScreenProps> = ({
     }
   }, [socket]);
 
-  //caching the images used in the game
+  // Cache images so they are ready before the game starts
   const cacheImages = async (srcArray: string[]) => {
-    const promises = await srcArray.map((src) => {
+    const promises = srcArray.map((src) => {
       return new Promise(function (resolve, reject) {
         const img = new Image();
         img.src = src;
@@ -49,6 +51,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     await Promise.all(promises);
 
+    // Small artificial delay so the loading screen is visible
     setTimeout(() => {
       setIsPreLoading(false);
     }, 2000);
