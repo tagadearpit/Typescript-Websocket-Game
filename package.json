@@ -2,6 +2,15 @@
   "name": "typescript-websocket-game",
   "version": "0.1.0",
   "private": true,
+  "description": "Real-time multiplayer cube collection game built with Next.js, TypeScript and Socket.IO",
+  "keywords": [
+    "nextjs",
+    "typescript",
+    "socket.io",
+    "multiplayer",
+    "game",
+    "websocket"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
