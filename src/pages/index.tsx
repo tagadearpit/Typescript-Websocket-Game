@@ -13,10 +13,10 @@ const Home: NextPage = () => {
   return (
     <>
       <Head>
-        <title>Ryans Cube Game</title>
+        <title>Multiplayer Cube Game | TypeScript WebSocket</title>
         <meta
           name="description"
-          content="Ryan's Multiplayer Cube Game, Invite Your Friends!"
+          content="Real-time multiplayer cube collection game built with Next.js, TypeScript and Socket.IO. Customize your character and play with friends!"
         />
         <link rel="icon" href="/favicon.ico" />
       </Head>
