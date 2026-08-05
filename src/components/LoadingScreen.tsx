@@ -1,17 +1,21 @@
 import { Puff } from "react-loader-spinner";
 
 const LoadingScreen: React.FC = () => {
-  //TODO: Maybe add some user stats once they are available / a db is introduced to store that stuff
+  // Future: Show user stats or tips once a database / persistent storage is added
   return (
-    <div className="bg-bl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform items-center text-center">
-      <h1 className="text-2xl text-white">- Loading Next Game -</h1>
-      <br />
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform items-center text-center">
+      <h1 className="mb-4 text-2xl font-semibold text-white">
+        Loading Next Game...
+      </h1>
+      <p className="mb-6 text-sm text-gray-300">
+        Connecting to server and preparing the world
+      </p>
       <Puff
-        height="300"
-        width="300"
+        height="200"
+        width="200"
         radius={1}
         color="#7ca6e4"
-        ariaLabel="puff-loading"
+        ariaLabel="Loading game"
         wrapperStyle={{}}
         wrapperClass=""
         visible={true}
