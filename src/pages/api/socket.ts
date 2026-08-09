@@ -1,11 +1,14 @@
 import { Server } from 'socket.io';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const HOST = '0.0.0.0';
+
 export default function SocketHandler(req: NextApiRequest, res: NextApiResponse & { socket: any }) {
   if (res.socket.server.io) {
-    console.log('Socket is already running');
+    console.log(`Socket is already running on http://${HOST}:${PORT}`);
   } else {
-    console.log('Socket is initializing');
+    console.log(`Socket is initializing on http://${HOST}:${PORT}`);
     const io = new Server(res.socket.server);
     res.socket.server.io = io;
 
