@@ -1,4 +1,13 @@
 import React, { useEffect } from 'react';
+import { io } from 'socket.io-client';
+
+const socket = io({
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  transports: ['websocket', 'polling'],
+});
 
 interface GameBoardProps {
   movePlayer: (direction: string) => void;
