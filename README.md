@@ -1,6 +1,6 @@
-# TypeScript WebSocket Game
+# Typescript-Websocket-Game
 
-A real-time multiplayer cube collection game built with **Next.js**, **TypeScript**, and **Socket.IO**.
+A real-time multiplayer cube collection game built with **Next.js**, **TypeScript**, **TailwindCSS**, and **Socket.io**.
 
 Players join a shared world, customize their character, and compete to collect coins. The game uses WebSockets for live multiplayer synchronization.
 
@@ -8,54 +8,25 @@ Players join a shared world, customize their character, and compete to collect c
 [https://typescript-websocket-game.up.railway.app](https://typescript-websocket-game.up.railway.app)
 
 ## Features
+- Real-time multiplayer synchronization via Socket.IO
+- Player customization and color selection
+- Dynamic board and obstacle rendering
+- Responsive controls (WASD and Arrow keys)
+- Automatic socket reconnection with backoff
 
-- Real-time multiplayer via Socket.IO
-- Character customization (name + colour)
-- Coin collection gameplay
-- Keyboard + mobile controls
-- Leaderboard
-- Sound effects and sprite animations
+## Deployment on Railway
 
-## Getting Started
+1. Connect your GitHub repository to Railway.
+2. Ensure environment variables are set:
+   - `NODE_ENV=production`
+3. Railway automatically detects `npm run build` and `npm start`.
+4. Set health check path to `/api/health`.
 
-### Prerequisites
-
-- Node.js 16+
-- npm or yarn
-
-### Installation
+## Getting Started Locally
 
 ```bash
-git clone https://github.com/tagadearpit/Typescript-Websocket-Game.git
-cd Typescript-Websocket-Game
 npm install
-```
-
-### Run the development server
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Scripts
-
-| Command       | Description              |
-|---------------|--------------------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production   |
-| `npm start`   | Start production server  |
-| `npm run lint`| Run ESLint               |
-
-## Tech Stack
-
-- Next.js 13
-- TypeScript
-- Socket.IO
-- Tailwind CSS
-- React
-
-## License
-
-Private / Personal project.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
