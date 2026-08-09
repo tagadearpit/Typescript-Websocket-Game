@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { throttle } from 'lodash';
 
 const socket = io({
   reconnection: true,
@@ -8,6 +9,10 @@ const socket = io({
   reconnectionDelayMax: 5000,
   transports: ['websocket', 'polling'],
 });
+
+export const emitPositionUpdate = throttle((x: number, y: number) => {
+  socket.emit('playerMove', { x, y });
+}, 1000 / 30); // 30 updates per second
 
 interface GameBoardProps {
   movePlayer: (direction: string) => void;
