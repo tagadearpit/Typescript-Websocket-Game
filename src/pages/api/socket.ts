@@ -42,6 +42,9 @@ export default function SocketHandler(req: NextApiRequest, res: NextApiResponse 
         // Clear interval immediately on disconnect
         clearInterval(pingInterval);
         console.log(`Socket ${socket.id} disconnected and ping interval cleared.`);
+
+        delete gameState.players[socket.id];
+        io.emit('playerDisconnected', { id: socket.id });
       });
     });
   }
