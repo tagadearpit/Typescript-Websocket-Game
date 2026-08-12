@@ -9,63 +9,57 @@ interface GameScreenProps {
   setIsCustomized: Dispatch<SetStateAction<boolean>>;
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({
-  isCustomized,
-  setIsCustomized,
-}) => {
+const GameScreen: React.FC<GameScreenProps> = ({ setIsCustomized }) => {
   const socket = useSocket();
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [connected, setConnected] = useState(socket.connected);
 
-  const [isPreLoading, setIsPreLoading] = useState<boolean>(true);
-  const [isConnecting, setIsConnecting] = useState<boolean>(true);
-
-  // Pre-cache game images (blocks + character sprites)
   useEffect(() => {
-    let characterResources: string[] = [];
-    Object.values(resourceJson.characters).forEach((val) => {
-      characterResources = [...characterResources, ...val];
-    });
+    let cancelled = false;
 
-    cacheImages([...resourceJson.blocks, ...characterResources]);
+    const sources = [
+      ...resourceJson.blocks,
+      ...Object.values(resourceJson.characters).flat(),
+    ];
+
+    const preload = async () => {
+      await Promise.allSettled(
+        sources.map(
+          (src) =>
+            new Promise<void>((resolve) => {
+              const image = new Image();
+              image.decoding = "async";
+              image.onload = () => resolve();
+              image.onerror = () => resolve();
+              image.src = src;
+            })
+        )
+      );
+      if (!cancelled) setAssetsReady(true);
+    };
+
+    preload();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Listen for successful socket connection
   useEffect(() => {
-    if (Object.keys(socket).length > 0) {
-      socket.on("connect", () => {
-        console.log("Connected to the server.");
-        setIsConnecting(false);
-      });
-    }
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+    };
   }, [socket]);
 
-  // Cache images so they are ready before the game starts
-  const cacheImages = async (srcArray: string[]) => {
-    const promises = srcArray.map((src) => {
-      return new Promise(function (resolve, reject) {
-        const img = new Image();
-        img.src = src;
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-    });
+  if (!assetsReady || !connected) return <LoadingScreen />;
 
-    await Promise.all(promises);
-
-    // Small artificial delay so the loading screen is visible
-    setTimeout(() => {
-      setIsPreLoading(false);
-    }, 2000);
-  };
-
-  return (
-    <>
-      {!isPreLoading && !isConnecting ? (
-        <GameBoard setIsCustomized={setIsCustomized} />
-      ) : (
-        <LoadingScreen />
-      )}
-    </>
-  );
+  return <GameBoard setIsCustomized={setIsCustomized} />;
 };
 
 export default GameScreen;
