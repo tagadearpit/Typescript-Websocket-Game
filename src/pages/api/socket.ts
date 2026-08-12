@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Server as ServerIO, Socket } from "socket.io";
-import { Server as NetServer } from "http";
+import type { Server as NetServer } from "http";
 import type { Coin, ControlsInterface, Player } from "../../global/types/gameTypes";
 import { randomMap } from "../../maps/maps";
 import { TILE_SIZE, PLAYER_SIZE, COIN_SIZE, END_GAME_SCORE, TICK_RATE, MAX_PLAYER_JUMPS } from "../../global/constants";
@@ -14,8 +14,9 @@ const MAX_COINS = 25;
 const JUMP_SPEED = -11;
 const MAX_DELTA_MS = 100;
 
+type ServerWithIO = NetServer & { io?: ServerIO };
 type NextApiResponseWithIO = NextApiResponse & {
-  socket: Socket & { server: NetServer & { io?: ServerIO } };
+  socket: { server: ServerWithIO };
 };
 
 const sanitizeName = (value: unknown) => {
@@ -32,18 +33,20 @@ const sanitizeColour = (value: unknown) => {
 };
 
 const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
-  if (res.socket.server.io) {
+  const server = res.socket.server;
+
+  if (server.io) {
     res.status(200).end();
     return;
   }
 
-  const io = new ServerIO(res.socket.server, {
+  const io = new ServerIO(server, {
     transports: ["websocket", "polling"],
     pingInterval: 25000,
     pingTimeout: 20000,
     maxHttpBufferSize: 1e5,
   });
-  res.socket.server.io = io;
+  server.io = io;
 
   let map: number[][] = [];
   let block = 2;
