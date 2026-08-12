@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="TypeScript WebSocket multiplayer cube game" />
+    <title>Ryans Cube Game</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #18181b; font-family: system-ui, sans-serif; }
+      #app { width: 100%; height: 100%; position: relative; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; background: #18181b; }
+      .panel { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(92vw, 420px); padding: 28px; border-radius: 14px; background: #27272a; color: #fff; box-shadow: 0 20px 60px #0008; z-index: 10; }
+      .panel h1 { margin: 0 0 8px; font-size: 28px; }
+      .panel p { color: #a1a1aa; margin: 0 0 22px; }
+      input, button { width: 100%; min-height: 44px; border-radius: 8px; border: 1px solid #52525b; margin-top: 10px; }
+      input[type=text] { padding: 0 12px; background: #18181b; color: #fff; }
+      input[type=color] { padding: 4px; background: #18181b; }
+      button { background: #4f46e5; color: #fff; font-weight: 700; cursor: pointer; }
+      #leaderboard { position: absolute; left: 0; top: 0; width: 260px; max-height: 100vh; overflow: auto; padding: 16px; background: #27272ae8; color: #fff; z-index: 5; }
+      #leaderboard h2 { margin: 0 0 12px; font-size: 20px; }
+      .player { padding: 6px 0; border-bottom: 1px solid #3f3f46; }
+      .ping { font-size: 11px; color: #a1a1aa; }
+      #status { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6; padding: 8px 12px; border-radius: 8px; background: #27272ae8; color: #fff; font-size: 13px; }
+      #mobile-controls { display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; grid-template-columns: repeat(12, 1fr); background: #27272acc; }
+      #mobile-controls button { margin: 0; min-height: 64px; background: transparent; border: 0; font-size: 16px; color: #60a5fa; touch-action: none; }
+      @media (max-width: 767px) { #leaderboard { display: none; } #mobile-controls { display: grid; } }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <section id="setup" class="panel">
+        <h1>Ryans Cube Game</h1>
+        <p>Choose your nickname and colour.</p>
+        <form id="setup-form">
+          <input id="nickname" type="text" maxlength="20" autocomplete="nickname" placeholder="Enter Your Nickname" />
+          <input id="colour" type="color" value="#4f46e5" />
+          <button type="submit">Load Game</button>
+        </form>
+      </section>
+      <canvas id="game" hidden></canvas>
+      <aside id="leaderboard" hidden><h2>Leaderboard</h2><div id="players"></div></aside>
+      <div id="status" hidden></div>
+      <div id="mobile-controls" hidden>
+        <button data-key="a" style="grid-column: span 3">◀</button>
+        <button data-key=" " style="grid-column: span 6">Jump</button>
+        <button data-key="d" style="grid-column: span 3">▶</button>
+        <button data-key="shift" style="grid-column: span 5">Sprint</button>
+        <button data-key="s" style="grid-column: span 2">▼</button>
+        <button data-key="r" style="grid-column: span 5">Respawn</button>
+      </div>
+    </main>
+    <script src="https://cdn.socket.io/4.5.3/socket.io.min.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
