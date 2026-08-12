@@ -7,7 +7,7 @@ import Leaderboard from "./Leaderboard";
 import LoadingScreen from "./LoadingScreen";
 import MobileControls from "./MobileControls";
 import resourceJson from "../resources/gameresources.json";
-import { useSocket } from "./SocketContext";
+import { useSocket } from "../components/SocketContext";
 
 interface GameBoardProps {
   setIsCustomized: Dispatch<SetStateAction<boolean>>;
@@ -15,6 +15,9 @@ interface GameBoardProps {
 
 const CONTROL_KEYS = new Set(["w", "a", "s", "d", " ", "r", "shift"]);
 const NETWORK_UPDATE_MS = 50;
+const CAMERA_SMOOTHING = 0.12;
+const CAMERA_MARGIN_X = 180;
+const CAMERA_MARGIN_Y = 140;
 
 const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
   const socket = useSocket();
@@ -43,7 +46,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
   const worldDirtyRef = useRef(true);
   const roundTransitionRef = useRef(false);
   const viewportRef = useRef({ width: 0, height: 0, dpr: 1 });
-  const lastFrameRef = useRef(0);
+  const cameraRef = useRef({ x: 0, y: 0, initialized: false });
 
   const [connected, setConnected] = useState(socket.connected);
   const [loadScreenState, setLoadScreenState] = useState(true);
@@ -170,27 +173,34 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
     const socketDisconnected = () => setConnected(false);
 
     const onBlock = (block: number) => {
+      const blockIndex = Math.max(1, Math.min(block, resourceJson.blocks.length - 1));
       const image = new Image();
       image.decoding = "async";
-      image.src = resourceJson.blocks[Math.max(0, Math.min(block - 1, resourceJson.blocks.length - 1))];
+      image.src = resourceJson.blocks[blockIndex];
       image.onload = () => {
         blockRef.current = image;
         worldDirtyRef.current = true;
       };
     };
+
     const onMap = (serverMap: number[][]) => {
       mapRef.current = serverMap;
+      cameraRef.current.initialized = false;
       worldDirtyRef.current = true;
     };
+
     const onPlayers = (players: Player[]) => {
       playersRef.current = players;
       currentPlayerRef.current = players.find((player) => player.id === socket.id);
     };
+
     const onCoins = (coins: { x: number; y: number }[]) => {
       coinsRef.current = coins;
     };
+
     const onJoin = (name: string) => showToast(`Player ${name} joined`);
     const onLeave = (name: string) => showToast(`Player ${name} left`);
+
     const onCoinSound = () => {
       const audio = audioRef.current.coin;
       if (audio) {
@@ -198,6 +208,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
         audio.play().catch(() => undefined);
       }
     };
+
     const onVictory = (name: string) => {
       showToast(`${name} the winner!`);
       roundTransitionRef.current = true;
@@ -208,6 +219,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
         setLoadScreenState(false);
       }, 1200);
     };
+
     const onDefeat = (name: string) => {
       showToast(`${name} the winner!`);
       roundTransitionRef.current = true;
@@ -282,13 +294,14 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
         }
       }
     }
+
     worldDirtyRef.current = false;
   };
 
   useEffect(() => {
     let running = true;
 
-    const render = (timestamp: number) => {
+    const render = () => {
       if (!running) return;
       animationFrameRef.current = requestAnimationFrame(render);
 
@@ -302,44 +315,78 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
       if (!width || !height) return;
 
       const player = currentPlayerRef.current;
-      const cx = player ? player.x - width / 2 + 140 : 0;
-      const cy = player ? player.y - height / 2 : 0;
+      const map = mapRef.current;
+      const world = worldCanvasRef.current;
+      const worldWidth = map.length ? Math.max(...map.map((row) => row.length)) * TILE_SIZE : width;
+      const worldHeight = map.length * TILE_SIZE;
+
+      const maxCameraX = Math.max(0, worldWidth - width);
+      const maxCameraY = Math.max(0, worldHeight - height);
+
+      if (!cameraRef.current.initialized) {
+        const initialX = player ? player.x - width / 2 + 140 : 0;
+        const initialY = player ? player.y - height / 2 : 0;
+        cameraRef.current.x = Math.max(0, Math.min(initialX, maxCameraX));
+        cameraRef.current.y = Math.max(0, Math.min(initialY, maxCameraY));
+        cameraRef.current.initialized = true;
+      }
+
+      if (player) {
+        const camera = cameraRef.current;
+        const playerScreenX = player.x - camera.x;
+        const playerScreenY = player.y - camera.y;
+        let desiredX = camera.x;
+        let desiredY = camera.y;
+
+        if (playerScreenX > width - CAMERA_MARGIN_X) desiredX = player.x - (width - CAMERA_MARGIN_X);
+        else if (playerScreenX < CAMERA_MARGIN_X) desiredX = player.x - CAMERA_MARGIN_X;
+
+        if (playerScreenY > height - CAMERA_MARGIN_Y) desiredY = player.y - (height - CAMERA_MARGIN_Y);
+        else if (playerScreenY < CAMERA_MARGIN_Y) desiredY = player.y - CAMERA_MARGIN_Y;
+
+        desiredX = Math.max(0, Math.min(desiredX, maxCameraX));
+        desiredY = Math.max(0, Math.min(desiredY, maxCameraY));
+
+        camera.x += (desiredX - camera.x) * CAMERA_SMOOTHING;
+        camera.y += (desiredY - camera.y) * CAMERA_SMOOTHING;
+      }
+
+      const cx = cameraRef.current.x;
+      const cy = cameraRef.current.y;
 
       context.fillStyle = "#18181b";
       context.fillRect(0, 0, width, height);
 
-      if (worldCanvasRef.current) {
-        context.drawImage(worldCanvasRef.current, -cx, -cy);
-      }
+      if (world) context.drawImage(world, -cx, -cy);
 
       const coinImage = coinImageRef.current;
       if (coinImage) {
         for (const coin of coinsRef.current) {
-          context.drawImage(coinImage, coin.x - cx, coin.y - cy, COIN_SIZE, COIN_SIZE);
+          const screenX = coin.x - cx;
+          const screenY = coin.y - cy;
+          if (screenX + COIN_SIZE < 0 || screenX > width || screenY + COIN_SIZE < 0 || screenY > height) continue;
+          context.drawImage(coinImage, screenX, screenY, COIN_SIZE, COIN_SIZE);
         }
       }
 
       context.font = "12px sans-serif";
       context.textAlign = "left";
       for (const otherPlayer of playersRef.current) {
+        const screenX = otherPlayer.x - cx;
+        const screenY = otherPlayer.y - cy;
         const isCurrent = otherPlayer.id === socket.id;
+
         if (isCurrent) {
           context.strokeStyle = "#ffffff";
           context.lineWidth = 2;
-          context.strokeRect(
-            otherPlayer.x - 1 - cx,
-            otherPlayer.y - 1 - cy,
-            PLAYER_SIZE + 2,
-            PLAYER_SIZE + 2
-          );
+          context.strokeRect(screenX - 1, screenY - 1, PLAYER_SIZE + 2, PLAYER_SIZE + 2);
         }
-        context.fillStyle = otherPlayer.colour || "#ffffff";
-        context.fillRect(otherPlayer.x - cx, otherPlayer.y - cy, PLAYER_SIZE, PLAYER_SIZE);
-        context.fillStyle = "#eeeeee";
-        context.fillText(otherPlayer.name, otherPlayer.x - 10 - cx, otherPlayer.y - 10 - cy);
-      }
 
-      lastFrameRef.current = timestamp;
+        context.fillStyle = otherPlayer.colour || "#ffffff";
+        context.fillRect(screenX, screenY, PLAYER_SIZE, PLAYER_SIZE);
+        context.fillStyle = "#eeeeee";
+        context.fillText(otherPlayer.name, screenX - 10, screenY - 10);
+      }
     };
 
     animationFrameRef.current = requestAnimationFrame(render);
