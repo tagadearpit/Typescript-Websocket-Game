@@ -1,9 +1,5 @@
-import { Dispatch, MutableRefObject, SetStateAction } from "react";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowDownIcon,
-} from "@heroicons/react/24/solid";
+import { MutableRefObject } from "react";
+import { ArrowLeftIcon, ArrowRightIcon, ArrowDownIcon } from "@heroicons/react/24/solid";
 import { KeyMap } from "../global/types/gameEnums";
 import { ControlsInterface } from "../global/types/gameTypes";
 
@@ -12,73 +8,66 @@ interface MobileControlsProps {
 }
 
 const MobileControls: React.FC<MobileControlsProps> = ({ controlsRef }) => {
-  const setControls = (key: KeyMap, active: boolean) => {
-    if (key === KeyMap.Down) {
-      controlsRef.current.down = active;
-    }
-    if (key === KeyMap.Left) {
-      controlsRef.current.left = active;
-    }
-    if (key === KeyMap.Right) {
-      controlsRef.current.right = active;
-    }
-    if (key === KeyMap.Jump) {
-      controlsRef.current.jump = active;
-    }
-    if (key === KeyMap.Respawn) {
-      controlsRef.current.respawn = active;
-    }
-    if (key === KeyMap.Sprint) {
-      controlsRef.current.sprint = active;
+  const setControl = (key: KeyMap, active: boolean) => {
+    switch (key) {
+      case KeyMap.Down:
+        controlsRef.current.down = active;
+        break;
+      case KeyMap.Left:
+        controlsRef.current.left = active;
+        break;
+      case KeyMap.Right:
+        controlsRef.current.right = active;
+        break;
+      case KeyMap.Jump:
+        controlsRef.current.jump = active;
+        break;
+      case KeyMap.Respawn:
+        controlsRef.current.respawn = active;
+        break;
+      case KeyMap.Sprint:
+        controlsRef.current.sprint = active;
+        break;
     }
   };
+
+  const bind = (key: KeyMap) => ({
+    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setControl(key, true);
+    },
+    onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      setControl(key, false);
+    },
+    onPointerCancel: () => setControl(key, false),
+    onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => event.preventDefault(),
+  });
 
   return (
     <div
       id="mobilecontrols"
-      className="fixed bottom-0 grid w-full grid-cols-12 grid-rows-2 rounded-md bg-zinc-800 bg-opacity-70 md:invisible"
+      className="fixed bottom-0 left-0 z-20 grid w-full grid-cols-12 grid-rows-2 rounded-md bg-zinc-800/70 md:hidden"
+      style={{ touchAction: "none" }}
     >
-      <button
-        onTouchStart={() => setControls(KeyMap.Left, true)}
-        onTouchEnd={() => setControls(KeyMap.Left, false)}
-        className="col-start-1 col-end-4 row-start-1"
-      >
-        <ArrowLeftIcon className="text-blue-500" />
+      <button {...bind(KeyMap.Left)} className="col-span-3 row-start-1 flex items-center justify-center p-4">
+        <ArrowLeftIcon className="h-8 w-8 text-blue-500" />
       </button>
-      <button
-        onTouchStart={() => setControls(KeyMap.Jump, true)}
-        onTouchEnd={() => setControls(KeyMap.Jump, false)}
-        className="col-start-4 col-end-10 row-start-1"
-      >
-        <p className="text-lg font-bold text-blue-500">Jump</p>
+      <button {...bind(KeyMap.Jump)} className="col-span-6 row-start-1 flex items-center justify-center p-4">
+        <span className="text-lg font-bold text-blue-500">Jump</span>
       </button>
-      <button
-        onTouchStart={() => setControls(KeyMap.Right, true)}
-        onTouchEnd={() => setControls(KeyMap.Right, false)}
-        className="col-start-10 col-end-13 row-start-1"
-      >
-        <ArrowRightIcon className="text-blue-500" />
+      <button {...bind(KeyMap.Right)} className="col-span-3 row-start-1 flex items-center justify-center p-4">
+        <ArrowRightIcon className="h-8 w-8 text-blue-500" />
       </button>
-      <button
-        onTouchStart={() => setControls(KeyMap.Sprint, true)}
-        onTouchEnd={() => setControls(KeyMap.Sprint, false)}
-        className="col-start-1 col-end-6 row-start-2"
-      >
-        <p className="text-lg font-bold text-blue-500">Sprint</p>
+      <button {...bind(KeyMap.Sprint)} className="col-span-5 row-start-2 flex items-center justify-center p-4">
+        <span className="text-lg font-bold text-blue-500">Sprint</span>
       </button>
-      <button
-        onTouchStart={() => setControls(KeyMap.Down, true)}
-        onTouchEnd={() => setControls(KeyMap.Down, false)}
-        className="col-start-6 col-end-8 row-start-2"
-      >
-        <ArrowDownIcon className="text-blue-500" />
+      <button {...bind(KeyMap.Down)} className="col-span-2 row-start-2 flex items-center justify-center p-4">
+        <ArrowDownIcon className="h-8 w-8 text-blue-500" />
       </button>
-      <button
-        onTouchStart={() => setControls(KeyMap.Respawn, true)}
-        onTouchEnd={() => setControls(KeyMap.Respawn, false)}
-        className="col-start-8 col-end-13 row-start-2"
-      >
-        <p className=" text-lg font-bold text-blue-500">Respawn</p>
+      <button {...bind(KeyMap.Respawn)} className="col-span-5 row-start-2 flex items-center justify-center p-4">
+        <span className="text-lg font-bold text-blue-500">Respawn</span>
       </button>
     </div>
   );
