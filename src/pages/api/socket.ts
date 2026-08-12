@@ -3,14 +3,7 @@ import { Server as ServerIO, Socket } from "socket.io";
 import { Server as NetServer } from "http";
 import type { Coin, ControlsInterface, Player } from "../../global/types/gameTypes";
 import { randomMap } from "../../maps/maps";
-import {
-  TILE_SIZE,
-  PLAYER_SIZE,
-  COIN_SIZE,
-  END_GAME_SCORE,
-  TICK_RATE,
-  MAX_PLAYER_JUMPS,
-} from "../../global/constants";
+import { TILE_SIZE, PLAYER_SIZE, COIN_SIZE, END_GAME_SCORE, TICK_RATE, MAX_PLAYER_JUMPS } from "../../global/constants";
 import { GameMode } from "../../global/types/gameEnums";
 
 const GRAVITY = 0.0218;
@@ -22,16 +15,13 @@ const JUMP_SPEED = -11;
 const MAX_DELTA_MS = 100;
 
 type NextApiResponseWithIO = NextApiResponse & {
-  socket: Socket & {
-    server: NetServer & { io?: ServerIO };
-  };
+  socket: Socket & { server: NetServer & { io?: ServerIO } };
 };
 
 const sanitizeName = (value: unknown) => {
   const name = Array.isArray(value) ? value[0] : value;
   if (typeof name !== "string") return "Player";
-  const trimmed = name.trim().slice(0, 20);
-  return trimmed || "Player";
+  return name.trim().slice(0, 20) || "Player";
 };
 
 const sanitizeColour = (value: unknown) => {
@@ -56,7 +46,7 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
   res.socket.server.io = io;
 
   let map: number[][] = [];
-  let block = 1;
+  let block = 2;
   let coins: Coin[] = [];
   let players: Player[] = [];
   let collidables: Array<{ x: number; y: number }> = [];
@@ -110,7 +100,7 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
 
     coins = [];
     map = randomMap();
-    block = Math.floor(Math.random() * 4) + 1;
+    block = Math.floor(Math.random() * 4) + 2;
     rebuildCollidables();
     playerSocketMap.forEach((socket) => sendGameData(socket));
   };
@@ -122,7 +112,6 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
       const row = Math.floor(Math.random() * map.length);
       const col = Math.floor(Math.random() * map[row].length);
       if (map[row][col] !== 0) continue;
-
       const x = col * TILE_SIZE;
       const y = row * TILE_SIZE;
       if (coins.some((coin) => coin.x === x && coin.y === y)) continue;
@@ -134,19 +123,15 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
   const startNewGame = () => {
     stopIntervals();
     if (!players.length) return;
-
     const game = GameMode.CollectTheCoins;
     console.log("Starting New Game:", GameMode[game]);
     resetGame();
-
     lastUpdate = Date.now();
-    intervals.push(
-      setInterval(() => {
-        const now = Date.now();
-        tick(now - lastUpdate);
-        lastUpdate = now;
-      }, 1000 / TICK_RATE)
-    );
+    intervals.push(setInterval(() => {
+      const now = Date.now();
+      tick(now - lastUpdate);
+      lastUpdate = now;
+    }, 1000 / TICK_RATE));
     intervals.push(setInterval(spawnCoin, COIN_SPAWN_RATE));
   };
 
@@ -175,7 +160,6 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
       }
 
       const horizontalSpeed = controls.sprint ? PLAYER_SPEED * SPRINT_MULTIPLIER : PLAYER_SPEED;
-
       if (controls.right) {
         player.x += horizontalSpeed;
         if (collidesWithMap(player)) player.x -= horizontalSpeed;
@@ -211,11 +195,9 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
       for (let i = coins.length - 1; i >= 0; i--) {
         const coin = coins[i];
         if (!overlaps(coin.x, coin.y, COIN_SIZE, player.x, player.y, PLAYER_SIZE)) continue;
-
         coins.splice(i, 1);
         player.score += 1;
         playerSocketMap.get(player.id)?.emit("playCoinSound");
-
         if (player.score >= END_GAME_SCORE) {
           finishRound(player);
           return;
@@ -236,7 +218,6 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
       });
     });
   };
-
   setInterval(pingPlayers, 5000);
 
   io.on("connection", (socket) => {
@@ -291,12 +272,10 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
     socket.on("disconnect", () => {
       const index = players.findIndex((item) => item.id === socket.id);
       const name = index >= 0 ? players[index].name : "Player";
-
       players = players.filter((item) => item.id !== socket.id);
       playerSocketMap.delete(socket.id);
       controlsMap.delete(socket.id);
       playerSocketMap.forEach((otherSocket) => otherSocket.emit("playerLeave", name));
-
       if (!players.length) stopIntervals();
     });
 
