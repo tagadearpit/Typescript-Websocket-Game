@@ -2,15 +2,6 @@
   "name": "typescript-websocket-game",
   "version": "0.1.0",
   "private": true,
-  "description": "Real-time multiplayer cube collection game built with Next.js, TypeScript and Socket.IO",
-  "keywords": [
-    "nextjs",
-    "typescript",
-    "socket.io",
-    "multiplayer",
-    "game",
-    "websocket"
-  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -18,25 +9,33 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@headlessui/react": "^1.7.4",
-    "@heroicons/react": "^2.0.13",
-    "lodash": "^4.17.21",
-    "next": "^13.0.0",
+    "@headlessui/react": "^1.7.3",
+    "@heroicons/react": "^2.0.12",
+    "bad-words": "^3.0.4",
+    "express": "^4.18.2",
+    "next": "^13.0.6",
+    "random-name": "^0.1.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-loader-spinner": "^5.3.4",
+    "react-toastify": "^9.0.8",
     "socket.io": "^4.5.3",
-    "socket.io-client": "^4.5.3",
-    "@types/lodash": "^4.14.202"
+    "socket.io-client": "^4.5.3"
   },
   "devDependencies": {
-    "@types/node": "^18.11.9",
-    "@types/react": "^18.0.25",
-    "@types/react-dom": "^18.0.9",
-    "autoprefixer": "^10.4.13",
-    "eslint": "^8.27.0",
-    "eslint-config-next": "^13.0.3",
-    "postcss": "^8.4.19",
-    "tailwindcss": "^3.2.4",
-    "typescript": "^4.9.3"
+    "@types/express": "^4.17.14",
+    "@types/node": "18.11.0",
+    "@types/random-name": "^0.1.0",
+    "@types/react": "18.0.21",
+    "@types/react-dom": "18.0.6",
+    "@types/webpack-env": "^1.18.0",
+    "autoprefixer": "^10.4.12",
+    "eslint": "8.25.0",
+    "eslint-config-next": "^13.0.6",
+    "postcss": "^8.4.18",
+    "prettier": "^2.7.1",
+    "prettier-plugin-tailwindcss": "^0.1.13",
+    "tailwindcss": "^3.2.0",
+    "typescript": "4.8.4"
   }
 }
