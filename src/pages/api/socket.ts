@@ -41,7 +41,7 @@ const sanitizeColour = (value: unknown) => {
     : `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")}`;
 };
 
-const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
+const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
   if (res.socket.server.io) {
     res.status(200).end();
     return;
@@ -82,9 +82,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
     collidables = [];
     for (let row = 0; row < map.length; row++) {
       for (let col = 0; col < map[row].length; col++) {
-        if (map[row][col] !== 0) {
-          collidables.push({ x: col * TILE_SIZE, y: row * TILE_SIZE });
-        }
+        if (map[row][col] !== 0) collidables.push({ x: col * TILE_SIZE, y: row * TILE_SIZE });
       }
     }
   };
@@ -114,8 +112,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
     map = randomMap();
     block = Math.floor(Math.random() * 4) + 1;
     rebuildCollidables();
-
-    playerSocketMap.forEach(sendGameData);
+    playerSocketMap.forEach((socket) => sendGameData(socket));
   };
 
   const spawnCoin = () => {
@@ -132,6 +129,25 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
       coins.push({ x, y });
       return;
     }
+  };
+
+  const startNewGame = () => {
+    stopIntervals();
+    if (!players.length) return;
+
+    const game = GameMode.CollectTheCoins;
+    console.log("Starting New Game:", GameMode[game]);
+    resetGame();
+
+    lastUpdate = Date.now();
+    intervals.push(
+      setInterval(() => {
+        const now = Date.now();
+        tick(now - lastUpdate);
+        lastUpdate = now;
+      }, 1000 / TICK_RATE)
+    );
+    intervals.push(setInterval(spawnCoin, COIN_SPAWN_RATE));
   };
 
   const finishRound = (winner: Player) => {
@@ -158,9 +174,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
         player.isJumping = false;
       }
 
-      const horizontalSpeed = controls.sprint
-        ? PLAYER_SPEED * SPRINT_MULTIPLIER
-        : PLAYER_SPEED;
+      const horizontalSpeed = controls.sprint ? PLAYER_SPEED * SPRINT_MULTIPLIER : PLAYER_SPEED;
 
       if (controls.right) {
         player.x += horizontalSpeed;
@@ -213,25 +227,6 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
     io.volatile.emit("coins", coins);
   };
 
-  const startNewGame = () => {
-    stopIntervals();
-    if (!players.length) return;
-
-    const game = GameMode.CollectTheCoins;
-    console.log("Starting New Game:", GameMode[game]);
-    resetGame();
-
-    lastUpdate = Date.now();
-    intervals.push(
-      setInterval(() => {
-        const now = Date.now();
-        tick(now - lastUpdate);
-        lastUpdate = now;
-      }, 1000 / TICK_RATE)
-    );
-    intervals.push(setInterval(spawnCoin, COIN_SPAWN_RATE));
-  };
-
   const pingPlayers = () => {
     const startedAt = Date.now();
     playerSocketMap.forEach((socket, id) => {
@@ -242,7 +237,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
     });
   };
 
-  const pingInterval = setInterval(pingPlayers, 5000);
+  setInterval(pingPlayers, 5000);
 
   io.on("connection", (socket) => {
     const player: Player = {
@@ -300,7 +295,6 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
       players = players.filter((item) => item.id !== socket.id);
       playerSocketMap.delete(socket.id);
       controlsMap.delete(socket.id);
-
       playerSocketMap.forEach((otherSocket) => otherSocket.emit("playerLeave", name));
 
       if (!players.length) stopIntervals();
@@ -310,8 +304,6 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithIO) => {
     else sendGameData(socket);
   });
 
-  req;
-  clearInterval(pingInterval);
   res.status(200).end();
 };
 
