@@ -1,24 +1,13 @@
 {
-  "blocks": [
-    "/img/coin2.png",
-    "/img/block.png",
-    "/img/block2.png",
-    "/img/block3.png",
-    "/img/block4.png"
-  ],
-  "environments": [],
-  "characters": {
-    "1": [
-      "/img/character1/chara1_forward_1.png",
-      "/img/character1/chara1_forward_2.png",
-      "/img/character1/chara1_forward_3.png",
-      "/img/character1/chara1_left_1.png",
-      "/img/character1/chara1_left_2.png",
-      "/img/character1/chara1_left_3.png",
-      "/img/character1/chara1_right_1.png",
-      "/img/character1/chara1_right_2.png",
-      "/img/character1/chara1_right_3.png"
-    ]
+  "blocks": ["/img/neon-platform.png"],
+  "sprites": {
+    "coin": "/img/neon-coin.png",
+    "player": "/img/neon-player.png"
   },
-  "music": []
+  "audio": {
+    "coin": "/coin.wav",
+    "victory": "/victory.wav",
+    "defeat": "/defeat.wav",
+    "music": "/SonicIceCapRemixLoopable.mp3"
+  }
 }

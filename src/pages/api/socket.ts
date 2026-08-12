@@ -1,294 +1,347 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest } from "next";
 import { Server as ServerIO, Socket } from "socket.io";
 import { Server as NetServer } from "http";
 import { NextApiResponseServerIO } from "../../global/types/next";
-import {
+import type {
   Coin,
-  Collidable,
   ControlsInterface,
   Player,
   Rect,
 } from "../../global/types/gameTypes";
 import { randomMap } from "../../maps/maps";
 import {
-  TILE_SIZE,
-  PLAYER_SIZE,
   COIN_SIZE,
   END_GAME_SCORE,
-  TICK_RATE,
   MAX_PLAYER_JUMPS,
+  PLAYER_SIZE,
+  SNAPSHOT_RATE,
+  TICK_RATE,
+  TILE_SIZE,
 } from "../../global/constants";
-import { GameMode } from "../../global/types/gameEnums";
+
 const random = require("random-name");
 
-const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
-  if (!res.socket.server.io) {
-    console.log("New Socket Server initializing...");
+const DEFAULT_CONTROLS: ControlsInterface = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+  jump: false,
+  respawn: false,
+  sprint: false,
+};
 
-    const GRAVITY = 0.0218;
-    const PLAYER_SPEED = 8.0;
-    const SPRINT_MULTIPLIER = 1.3;
-    const COIN_SPAWN_RATE = 700;
-    const MAX_COINS = 25;
-    const JUMP_SPEED = -11;
+const SocketHandler = (_req: NextApiRequest, res: NextApiResponseServerIO) => {
+  if (res.socket.server.io) {
+    res.end();
+    return;
+  }
 
-    let map: number[][] = [];
-    let block = 1;
-    let coins: Coin[] = [];
-    let players: Player[] = [];
-    const playerSocketMap: Map<string, Player> = new Map();
-    const socketMap: Map<string, Socket> = new Map();
-    const controlsMap: Map<string, ControlsInterface> = new Map();
+  const io: ServerIO = new ServerIO(res.socket.server as unknown as NetServer, {
+    transports: ["websocket", "polling"],
+    pingInterval: 10000,
+    pingTimeout: 8000,
+    maxHttpBufferSize: 10000,
+  });
+  res.socket.server.io = io;
 
-    const httpServer: NetServer = res.socket.server as unknown as NetServer;
-    const io: ServerIO = new ServerIO(httpServer);
-    res.socket.server.io = io;
+  const GRAVITY = 0.0218;
+  const PLAYER_SPEED = 8;
+  const SPRINT_MULTIPLIER = 1.3;
+  const COIN_SPAWN_RATE = 700;
+  const MAX_COINS = 18;
+  const JUMP_SPEED = -11;
+  const MAX_SIMULATION_DELTA = 50;
+  const MIN_SIMULATION_DELTA = 8;
 
-    const sendGameData = (socket: Socket) => {
-      socket.emit("block", block);
-      socket.emit("map", map);
-    };
+  let map: number[][] = [];
+  let block = 1;
+  let coins: Coin[] = [];
+  let players: Player[] = [];
+  let freeCells: Coin[] = [];
+  let collisionGrid: boolean[][] = [];
+  let tickTimer: ReturnType<typeof setInterval> | null = null;
+  let coinTimer: ReturnType<typeof setInterval> | null = null;
+  let pingTimer: ReturnType<typeof setInterval> | null = null;
+  let roundResetting = false;
+  let lastUpdate = Date.now();
+  let snapshotAccumulator = 0;
 
-    const ping = () => {
-      socketMap.forEach((value, key) => {
-        const start = Date.now();
-        value.emit("ping", () => {
-          const player = playerSocketMap.get(key);
-          if (player) player.ping = Date.now() - start;
-        });
+  const socketMap = new Map<string, Socket>();
+  const controlsMap = new Map<string, ControlsInterface>();
+  const playerSocketMap = new Map<string, Player>();
+
+  const getPlayerBoundingBox = (player: Player): Rect => ({
+    width: PLAYER_SIZE,
+    height: PLAYER_SIZE,
+    x: player.x,
+    y: player.y,
+  });
+
+  const getCoinBoundingBox = (coin: Coin): Rect => ({
+    width: COIN_SIZE,
+    height: COIN_SIZE,
+    x: coin.x,
+    y: coin.y,
+  });
+
+  const isOverlap = (rect1: Rect, rect2: Rect) =>
+    rect1.x < rect2.x + rect2.width &&
+    rect1.x + rect1.width > rect2.x &&
+    rect1.y < rect2.y + rect2.height &&
+    rect1.y + rect1.height > rect2.y;
+
+  const rebuildWorldCache = () => {
+    collisionGrid = map.map((row) => row.map((cell) => cell !== 0));
+    freeCells = [];
+    for (let row = 0; row < map.length; row += 1) {
+      for (let column = 0; column < map[row].length; column += 1) {
+        if (!collisionGrid[row][column])
+          freeCells.push({ x: column * TILE_SIZE, y: row * TILE_SIZE });
+      }
+    }
+  };
+
+  const isCollidingWithMap = (player: Player) => {
+    if (!collisionGrid.length) return false;
+    const left = Math.max(0, Math.floor(player.x / TILE_SIZE));
+    const right = Math.min(
+      collisionGrid[0].length - 1,
+      Math.floor((player.x + PLAYER_SIZE - 0.001) / TILE_SIZE)
+    );
+    const top = Math.max(0, Math.floor(player.y / TILE_SIZE));
+    const bottom = Math.min(
+      collisionGrid.length - 1,
+      Math.floor((player.y + PLAYER_SIZE - 0.001) / TILE_SIZE)
+    );
+    for (let row = top; row <= bottom; row += 1) {
+      for (let column = left; column <= right; column += 1) {
+        if (collisionGrid[row]?.[column]) return true;
+      }
+    }
+    return false;
+  };
+
+  const emitWorld = (socket: Socket) => {
+    socket.emit("block", block);
+    socket.emit("map", map);
+    socket.emit("players", players);
+    socket.emit("coins", coins);
+  };
+
+  const emitSnapshot = () => {
+    if (!players.length) return;
+    io.emit("players", players);
+    io.emit("coins", coins);
+  };
+
+  const ping = () => {
+    socketMap.forEach((socket, id) => {
+      const startedAt = Date.now();
+      socket.emit("ping", () => {
+        const player = playerSocketMap.get(id);
+        if (player) player.ping = Date.now() - startedAt;
       });
-    };
-
-    const getPlayerBoundingBox = (entity: Player): Rect => ({
-      width: PLAYER_SIZE,
-      height: PLAYER_SIZE,
-      x: entity.x,
-      y: entity.y,
     });
+  };
 
-    const getTileBoundingBox = (entity: Collidable): Rect => ({
-      width: TILE_SIZE,
-      height: TILE_SIZE,
-      x: entity.x,
-      y: entity.y,
+  const spawnCoin = () => {
+    if (coins.length >= MAX_COINS || !freeCells.length) return;
+    const existing = new Set(coins.map((coin) => `${coin.x}:${coin.y}`));
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const cell = freeCells[Math.floor(Math.random() * freeCells.length)];
+      const key = `${cell.x}:${cell.y}`;
+      if (!existing.has(key)) {
+        coins.push({ ...cell });
+        return;
+      }
+    }
+  };
+
+  const resetPlayer = (player: Player) => {
+    player.score = 0;
+    player.x = 384;
+    player.y = 96;
+    player.vx = 0;
+    player.vy = 0;
+    player.jumps = 0;
+    player.isJumping = false;
+  };
+
+  const resetGame = () => {
+    map = randomMap();
+    block = Math.floor(Math.random() * 4) + 1;
+    rebuildWorldCache();
+    coins = [];
+    players.forEach(resetPlayer);
+    socketMap.forEach(emitWorld);
+  };
+
+  const stopLoops = () => {
+    if (tickTimer) clearInterval(tickTimer);
+    if (coinTimer) clearInterval(coinTimer);
+    if (pingTimer) clearInterval(pingTimer);
+    tickTimer = null;
+    coinTimer = null;
+    pingTimer = null;
+  };
+
+  const startNewGame = () => {
+    stopLoops();
+    roundResetting = false;
+    resetGame();
+    lastUpdate = Date.now();
+    snapshotAccumulator = 0;
+    tickTimer = setInterval(() => {
+      const now = Date.now();
+      const delta = Math.min(
+        MAX_SIMULATION_DELTA,
+        Math.max(MIN_SIMULATION_DELTA, now - lastUpdate)
+      );
+      lastUpdate = now;
+      tick(delta);
+    }, 1000 / TICK_RATE);
+    coinTimer = setInterval(spawnCoin, COIN_SPAWN_RATE);
+    pingTimer = setInterval(ping, 5000);
+  };
+
+  const endRound = (winner: Player) => {
+    if (roundResetting) return;
+    roundResetting = true;
+    socketMap.forEach((socket, id) => {
+      socket.emit(
+        id === winner.id ? "playVictorySound" : "playDefeatSound",
+        id === winner.id ? "You are" : `${winner.name} is`
+      );
     });
+    startNewGame();
+  };
 
-    const getCoinBoundingBox = (entity: Coin): Rect => ({
-      width: COIN_SIZE,
-      height: COIN_SIZE,
-      x: entity.x,
-      y: entity.y,
-    });
-
-    const isOverlap = (rect1: Rect, rect2: Rect) =>
-      rect1.x < rect2.x + rect2.width &&
-      rect1.x + rect1.width > rect2.x &&
-      rect1.y < rect2.y + rect2.height &&
-      rect1.y + rect1.height > rect2.y;
-
-    const collidables = (): Collidable[] => {
-      const collisions: Collidable[] = [];
-      for (let row = 0; row < map.length; row++) {
-        for (let col = 0; col < map[row].length; col++) {
-          if (map[row][col] !== 0) {
-            collisions.push({ y: row * TILE_SIZE, x: col * TILE_SIZE });
-          }
+  const tick = (delta: number) => {
+    for (const player of players) {
+      const playerControls = controlsMap.get(player.id) ?? DEFAULT_CONTROLS;
+      for (let index = coins.length - 1; index >= 0; index -= 1) {
+        const coin = coins[index];
+        if (!isOverlap(getCoinBoundingBox(coin), getPlayerBoundingBox(player)))
+          continue;
+        player.score += 1;
+        coins.splice(index, 1);
+        socketMap.get(player.id)?.emit("playCoinSound");
+        if (player.score >= END_GAME_SCORE) {
+          endRound(player);
+          return;
         }
       }
-      return collisions;
-    };
 
-    const isCollidingWithMap = (player: Player) =>
-      collidables().some((collidable) =>
-        isOverlap(getPlayerBoundingBox(player), getTileBoundingBox(collidable))
-      );
-
-    const resetGame = () => {
-      for (const player of players) {
-        player.score = 0;
+      if (playerControls.respawn) {
         player.x = 100;
         player.y = 100;
-        player.vx = 0;
         player.vy = 0;
-        player.jumps = 0;
+      }
+
+      const horizontalSpeed = playerControls.sprint
+        ? PLAYER_SPEED * SPRINT_MULTIPLIER
+        : PLAYER_SPEED;
+      if (playerControls.right) {
+        player.x += horizontalSpeed;
+        if (isCollidingWithMap(player)) player.x -= horizontalSpeed;
+      } else if (playerControls.left) {
+        player.x -= horizontalSpeed;
+        if (isCollidingWithMap(player)) player.x += horizontalSpeed;
+      }
+
+      player.vy += playerControls.down ? GRAVITY * delta * 4 : GRAVITY * delta;
+      player.y += player.vy;
+      if (isCollidingWithMap(player)) {
+        if (player.vy > 0) player.jumps = 0;
+        player.y -= player.vy;
+        player.vy = 0;
+      }
+
+      if (
+        playerControls.jump &&
+        player.jumps < MAX_PLAYER_JUMPS &&
+        !player.isJumping
+      ) {
+        player.isJumping = true;
+        player.jumps += 1;
+        player.vy = JUMP_SPEED;
+      } else if (!playerControls.jump && player.isJumping) {
         player.isJumping = false;
       }
-      coins = [];
-      map = randomMap();
-      block = Math.floor(Math.random() * 4) + 1;
-      socketMap.forEach(sendGameData);
+
+      if (player.y > map.length * TILE_SIZE * 2) resetPlayer(player);
+    }
+
+    snapshotAccumulator += delta;
+    if (snapshotAccumulator >= 1000 / SNAPSHOT_RATE) {
+      snapshotAccumulator = 0;
+      emitSnapshot();
+    }
+  };
+
+  io.on("connection", (socket: Socket) => {
+    if (!players.length) startNewGame();
+
+    const playerName =
+      socket.handshake.query.name?.toString().slice(0, 18) || random.first();
+    const playerColour = socket.handshake.query.colour
+      ?.toString()
+      .match(/^#[0-9a-f]{6}$/i)
+      ? socket.handshake.query.colour.toString()
+      : `#${Math.floor(Math.random() * 0xffffff)
+          .toString(16)
+          .padStart(6, "0")}`;
+    const player: Player = {
+      x: 384,
+      y: 96,
+      vx: 0,
+      vy: 0,
+      score: 0,
+      name: playerName,
+      id: socket.id,
+      colour: playerColour,
+      jumps: 0,
+      isJumping: false,
+      ping: 0,
     };
 
-    const spawnCoin = () => {
-      if (coins.length >= MAX_COINS || !map.length || !map[0]?.length) return;
-      const randomRow = Math.floor(Math.random() * map.length);
-      const randomCol = Math.floor(Math.random() * map[0].length);
-      if (map[randomRow][randomCol] !== 0) return;
-      coins.push({ x: randomCol * TILE_SIZE, y: randomRow * TILE_SIZE });
-    };
+    playerSocketMap.set(socket.id, player);
+    socketMap.set(socket.id, socket);
+    controlsMap.set(socket.id, { ...DEFAULT_CONTROLS });
+    players.push(player);
 
-    let intervals: ReturnType<typeof setInterval>[] = [];
-    let lastUpdate = Date.now();
-
-    const endGameLobby = () => {
-      console.log("No Players left, ending game lobby");
-      intervals.forEach(clearInterval);
-      intervals = [];
-    };
-
-    const startNewGame = () => {
-      intervals.forEach(clearInterval);
-      intervals = [];
-
-      const game: GameMode = GameMode.CollectTheCoins;
-      console.log("Starting New Game:", GameMode[game]);
-      resetGame();
-
-      intervals.push(
-        setInterval(() => {
-          const now = Date.now();
-          tick(now - lastUpdate);
-          lastUpdate = now;
-        }, 1000 / TICK_RATE)
-      );
-      intervals.push(setInterval(spawnCoin, COIN_SPAWN_RATE));
-    };
-
-    const tick = (delta: number) => {
-      for (const player of players) {
-        const playerControls = controlsMap.get(player.id);
-
-        for (let i = coins.length - 1; i >= 0; i--) {
-          const coin = coins[i];
-          if (
-            isOverlap(getCoinBoundingBox(coin), getPlayerBoundingBox(player))
-          ) {
-            player.score++;
-            coins.splice(i, 1);
-            if (player.score >= END_GAME_SCORE) {
-              socketMap.forEach((value, key) => {
-                value.emit(
-                  key === player.id ? "playVictorySound" : "playDefeatSound",
-                  key === player.id ? "You are" : `${player.name} is`
-                );
-              });
-              startNewGame();
-              return;
-            }
-            socketMap.get(player.id)?.emit("playCoinSound");
-          }
-        }
-
-        if (!playerControls) continue;
-
-        if (playerControls.respawn) {
-          player.x = 100;
-          player.y = 100;
-          player.vy = 0;
-        }
-
-        const horizontalSpeed = playerControls.sprint
-          ? PLAYER_SPEED * SPRINT_MULTIPLIER
-          : PLAYER_SPEED;
-
-        if (playerControls.right) {
-          player.x += horizontalSpeed;
-          if (isCollidingWithMap(player)) player.x -= horizontalSpeed;
-        } else if (playerControls.left) {
-          player.x -= horizontalSpeed;
-          if (isCollidingWithMap(player)) player.x += horizontalSpeed;
-        }
-
-        player.vy += playerControls.down
-          ? GRAVITY * delta * 4
-          : GRAVITY * delta;
-        player.y += player.vy;
-
-        if (isCollidingWithMap(player)) {
-          if (player.vy > 0) player.jumps = 0;
-          player.y -= player.vy;
-          player.vy = 0;
-        }
-
-        if (
-          playerControls.jump &&
-          player.jumps < MAX_PLAYER_JUMPS &&
-          !player.isJumping
-        ) {
-          player.isJumping = true;
-          player.jumps++;
-          player.vy = JUMP_SPEED;
-        } else if (!playerControls.jump && player.isJumping) {
-          player.isJumping = false;
-        }
-
-        if (player.y > map.length * TILE_SIZE * 2) {
-          player.x = 100;
-          player.y = 100;
-          player.vy = 0;
-        }
-      }
-
-      io.emit("players", players);
-      io.emit("coins", coins);
-    };
-
-    io.on("connection", (socket: Socket) => {
-      if (!players.length) startNewGame();
-
-      const playerName = socket.handshake.query.name?.toString() || random.first();
-      const playerColour =
-        socket.handshake.query.colour?.toString() ||
-        `#${Math.floor(Math.random() * 0xffffff + 1).toString(16)}`;
-
-      const player: Player = {
-        x: 100,
-        y: 100,
-        vx: 0,
-        vy: 0,
-        score: 0,
-        name: playerName,
-        id: socket.id,
-        colour: playerColour,
-        jumps: 0,
-        isJumping: false,
-        ping: 0,
-      };
-
-      socketMap.forEach((value, key) => {
-        if (key !== player.id) value.emit("playerJoin", player.name);
-      });
-
-      playerSocketMap.set(socket.id, player);
-      socketMap.set(socket.id, socket);
-      players.push(player);
-
-      socket.on("disconnect", () => {
-        console.log(`${player.name} disconnected`);
-        playerSocketMap.delete(socket.id);
-        socketMap.delete(socket.id);
-        controlsMap.delete(socket.id);
-        socketMap.forEach((value, key) => {
-          if (key !== player.id) value.emit("playerLeave", player.name);
-        });
-        players = players.filter((item) => item.id !== socket.id);
-        if (!players.length) endGameLobby();
-      });
-
-      socket.on("controls", (controls: ControlsInterface) => {
-        controlsMap.set(socket.id, controls);
-      });
-
-      socket.on("ready", (callback: () => void) => {
-        sendGameData(socket);
-        callback();
-      });
+    socketMap.forEach((otherSocket, otherId) => {
+      if (otherId !== socket.id) otherSocket.emit("playerJoin", player.name);
     });
 
-    const pingInterval = setInterval(ping, 5000);
-    intervals.push(pingInterval);
-  }
+    socket.on("disconnect", () => {
+      socketMap.forEach((otherSocket, otherId) => {
+        if (otherId !== socket.id) otherSocket.emit("playerLeave", player.name);
+      });
+      playerSocketMap.delete(socket.id);
+      socketMap.delete(socket.id);
+      controlsMap.delete(socket.id);
+      players = players.filter((item) => item.id !== socket.id);
+      if (!players.length) stopLoops();
+      else emitSnapshot();
+    });
+
+    socket.on("controls", (incoming: ControlsInterface) => {
+      const safeControls: ControlsInterface = { ...DEFAULT_CONTROLS };
+      (Object.keys(DEFAULT_CONTROLS) as Array<keyof ControlsInterface>).forEach(
+        (key) => {
+          safeControls[key] = Boolean(incoming?.[key]);
+        }
+      );
+      controlsMap.set(socket.id, safeControls);
+    });
+
+    socket.on("ready", (callback?: () => void) => {
+      emitWorld(socket);
+      callback?.();
+    });
+  });
 
   res.end();
 };

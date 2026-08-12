@@ -1,115 +1,106 @@
-import React, { Dispatch, SetStateAction, useEffect, useRef } from "react";
 import Image from "next/image";
+import { useState } from "react";
 
 const random = require("random-name");
 const Filter = require("bad-words");
 
 interface CustomizeCharProps {
-  setIsCustomized: Dispatch<SetStateAction<boolean>>;
-  setName: Dispatch<SetStateAction<string>>;
-  setColour: Dispatch<SetStateAction<string>>;
+  setIsCustomized: React.Dispatch<React.SetStateAction<boolean>>;
+  setName: React.Dispatch<React.SetStateAction<string>>;
+  setColour: React.Dispatch<React.SetStateAction<string>>;
 }
+
+const makeColour = () =>
+  `#${Math.floor(Math.random() * 0xffffff)
+    .toString(16)
+    .padStart(6, "0")}`;
 
 const CustomizeChar: React.FC<CustomizeCharProps> = ({
   setIsCustomized,
   setName,
   setColour,
 }) => {
-  const username = useRef<HTMLInputElement | null>(null);
-  const colour = useRef<HTMLInputElement | null>(null);
+  const [nickname, setNickname] = useState("");
+  const [colour, setLocalColour] = useState(makeColour);
+  const [error, setError] = useState("");
   const filter = new Filter();
 
-  useEffect(() => {
-    colour.current!.value = `#${Math.floor(
-      Math.random() * (0xffffff + 1)
-    ).toString(16)}`;
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = username.current?.value
-      ? username.current?.value
-      : random.first();
-    if (filter.isProfane(name)) {
-      alert("Username may not be a profane word!");
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const nextName = nickname.trim() || random.first();
+    if (filter.isProfane(nextName)) {
+      setError("Choose a different nickname before entering the arena.");
       return;
     }
-    setName(name);
-    setColour(colour.current!.value);
+    setName(nextName.slice(0, 18));
+    setColour(colour);
     setIsCustomized(true);
   };
 
   return (
-    <>
-      <div className="flex min-h-full flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <main className="customize-shell">
+      <div className="customize-stars" aria-hidden="true" />
+      <section className="customize-card">
+        <div className="brand-mark">
           <Image
-            className="mx-auto h-12 w-auto"
             src="/img/ryanlogo.png"
-            alt="Ryanc268 logo"
-            width="100"
-            height="100"
+            alt="Neon Cube Arena logo"
+            width={56}
+            height={56}
           />
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-300">
-            Ryans Cube Game
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-400">
-            Enter you account info below
-          </p>
         </div>
-
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-zinc-800 py-8 px-4 shadow rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-300"
-                >
-                  Nickname
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="nickname"
-                    type="text"
-                    placeholder="Enter Your Nickname"
-                    ref={username}
-                    //required
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="color"
-                  className="block text-sm font-medium text-gray-300"
-                >
-                  Colour
-                </label>
-                <div className="mt-1 flex">
-                  <input
-                    id="color"
-                    type="color"
-                    ref={colour}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  Load Game
-                </button>
-              </div>
-            </form>
+        <span className="eyebrow">MULTIPLAYER ARCADE // 01</span>
+        <h1>
+          Neon Cube
+          <br />
+          <span>Arena</span>
+        </h1>
+        <p className="customize-subtitle">
+          A fast, shared arena where every coin changes the leaderboard.
+        </p>
+        <div className="customize-rule" />
+        <form onSubmit={handleSubmit} className="customize-form">
+          <label htmlFor="nickname">
+            Callsign <span>OPTIONAL</span>
+          </label>
+          <input
+            id="nickname"
+            value={nickname}
+            onChange={(event) => setNickname(event.target.value)}
+            maxLength={18}
+            placeholder="Enter your nickname"
+            autoComplete="nickname"
+          />
+          <label htmlFor="color">Avatar signal</label>
+          <div className="color-picker-row">
+            <input
+              id="color"
+              type="color"
+              value={colour}
+              onChange={(event) => setLocalColour(event.target.value)}
+            />
+            <div>
+              <strong style={{ color: colour }}>{colour.toUpperCase()}</strong>
+              <span>Your cube’s accent color</span>
+            </div>
           </div>
+          {error ? (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button className="launch-button" type="submit">
+            <span>Enter the arena</span>
+            <strong>↗</strong>
+          </button>
+        </form>
+        <div className="customize-footer">
+          <span>WASD / ARROWS TO MOVE</span>
+          <span>SPACE TO JUMP</span>
+          <span>10 COINS TO WIN</span>
         </div>
-      </div>
-    </>
+      </section>
+    </main>
   );
 };
 

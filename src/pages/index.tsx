@@ -6,36 +6,35 @@ import CustomizeChar from "../components/CustomizeChar";
 import GameScreen from "../components/GameScreen";
 
 const Home: NextPage = () => {
-  const [isCustomized, setIsCustomized] = useState<boolean>(false);
-  const [name, setName] = useState<string>("");
-  const [colour, setColour] = useState<string>("");
+  const [isCustomized, setIsCustomized] = useState(false);
+  const [name, setName] = useState("");
+  const [colour, setColour] = useState("");
 
   return (
     <>
       <Head>
-        <title>Multiplayer Cube Game | TypeScript WebSocket</title>
+        <title>Neon Cube Arena | Real-time multiplayer</title>
         <meta
           name="description"
-          content="Real-time multiplayer cube collection game built with Next.js, TypeScript and Socket.IO. Customize your character and play with friends!"
+          content="A fast, real-time multiplayer coin collection arena built with Next.js and Socket.IO."
         />
+        <meta name="theme-color" content="#070b2d" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main>
-        {!isCustomized ? (
-          <CustomizeChar
+      {!isCustomized ? (
+        <CustomizeChar
+          setIsCustomized={setIsCustomized}
+          setName={setName}
+          setColour={setColour}
+        />
+      ) : (
+        <SocketProvider name={name} colour={colour}>
+          <GameScreen
+            isCustomized={isCustomized}
             setIsCustomized={setIsCustomized}
-            setName={setName}
-            setColour={setColour}
           />
-        ) : (
-          <SocketProvider name={name} colour={colour}>
-            <GameScreen
-              isCustomized={isCustomized}
-              setIsCustomized={setIsCustomized}
-            />
-          </SocketProvider>
-        )}
-      </main>
+        </SocketProvider>
+      )}
     </>
   );
 };

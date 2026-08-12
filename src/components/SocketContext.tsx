@@ -1,11 +1,19 @@
-import { createContext, useContext, useEffect, useState } from "react";
 import SocketIOClient, { Socket } from "socket.io-client";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-const SocketContext = createContext<Socket>({} as Socket);
+type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error";
 
-export const useSocket = () => {
-  return useContext(SocketContext);
-};
+interface SocketContextValue {
+  socket: Socket | null;
+  status: ConnectionStatus;
+}
+
+const SocketContext = createContext<SocketContextValue>({
+  socket: null,
+  status: "connecting",
+});
+
+export const useSocket = () => useContext(SocketContext);
 
 interface SocketProviderProps {
   name: string;
@@ -18,27 +26,61 @@ const SocketProvider: React.FC<SocketProviderProps> = ({
   colour,
   children,
 }) => {
-  const [socket, setSocket] = useState<Socket>({} as Socket);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>("connecting");
 
   useEffect(() => {
-    console.log("Context Mounted");
-    // Trigger the API route that initializes the Socket.IO server
-    fetch("/api/socket");
+    let cancelled = false;
+    let activeSocket: Socket | null = null;
 
-    const newSocket = SocketIOClient(window.location.origin, {
-      query: { name, colour },
-    });
+    const connect = async () => {
+      setStatus("connecting");
+      try {
+        await fetch("/api/socket", { cache: "no-store" });
+        if (cancelled) return;
 
-    setSocket(newSocket);
+        activeSocket = SocketIOClient(window.location.origin, {
+          query: { name, colour },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 5000,
+          timeout: 8000,
+        });
+
+        const handleConnect = () => setStatus("connected");
+        const handleDisconnect = () => setStatus("reconnecting");
+        const handleReconnectAttempt = () => setStatus("reconnecting");
+        const handleConnectError = () => setStatus("error");
+
+        activeSocket.on("connect", handleConnect);
+        activeSocket.on("disconnect", handleDisconnect);
+        activeSocket.io.on("reconnect_attempt", handleReconnectAttempt);
+        activeSocket.on("connect_error", handleConnectError);
+        setSocket(activeSocket);
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    };
+
+    void connect();
 
     return () => {
-      newSocket.close();
-      console.log("Context Dismounted");
+      cancelled = true;
+      if (activeSocket) {
+        activeSocket.removeAllListeners();
+        activeSocket.io.removeAllListeners();
+        activeSocket.close();
+      }
+      setSocket(null);
     };
   }, [name, colour]);
 
+  const value = useMemo(() => ({ socket, status }), [socket, status]);
+
   return (
-    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={value}>{children}</SocketContext.Provider>
   );
 };
 

@@ -1,95 +1,47 @@
-export const mainMap = () => {
-  return [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  ];
-};
-
-let blockInARow = 0;
-let spaceInARow = 0;
-
 export const randomMap = () => {
-  const max = Math.floor(Math.random() * 10) + 20;
-  const BLOCK_WEIGHT = Math.floor(Math.random() * 7) + 3;
-  const SPACE_WEIGHT = Math.floor(Math.random() * 25) + 30;
-  console.log(`Block`, BLOCK_WEIGHT);
-  console.log(`Space`, SPACE_WEIGHT);
-  const columns = max;
-  const rows = max;
-  let mapArr: number[][] = [];
-  for (let i = 0; i < rows; i++) {
-    mapArr[i] = [];
-    for (let j = 0; j < columns; j++) {
-      const tile: number = tileAlgorithm(i, j, BLOCK_WEIGHT, SPACE_WEIGHT);
-      mapArr[i][j] = tile;
-    }
-  }
-  return mapArr;
-};
+  const size = Math.floor(Math.random() * 10) + 20;
+  const blockWeight = Math.floor(Math.random() * 7) + 3;
+  const spaceWeight = Math.floor(Math.random() * 25) + 30;
+  let blocksInARow = 0;
+  let spacesInARow = 0;
+  const map: number[][] = [];
 
-const tileAlgorithm = (
-  i: number,
-  j: number,
-  BLOCK_WEIGHT: number,
-  SPACE_WEIGHT: number
-) => {
-  let tile: number = 0;
-  if (isUnderSpawn(i, j)) {
-    return 1;
-  } else if (!isSpawn(i, j)) {
-    if (blockInARow > 0) {
-      if (Math.floor(Math.random() * BLOCK_WEIGHT) > blockInARow) {
+  for (let row = 0; row < size; row += 1) {
+    const line: number[] = [];
+    for (let column = 0; column < size; column += 1) {
+      let tile = 0;
+      const protectedSpawn = row === 4 && column === 3;
+      const spawnColumn =
+        row === 3 || column === 4 || (row === 4 && column === 3);
+
+      if (protectedSpawn) {
         tile = 1;
-      } else {
-        tile = 0;
+      } else if (!spawnColumn) {
+        if (blocksInARow > 0) {
+          tile = Math.floor(Math.random() * blockWeight) > blocksInARow ? 1 : 0;
+        } else if (spacesInARow > 0) {
+          tile = Math.floor(Math.random() * spaceWeight) > spacesInARow ? 0 : 1;
+        } else {
+          tile = Math.floor(Math.random() * 2);
+        }
       }
-    } else if (spaceInARow > 0) {
-      if (Math.floor(Math.random() * SPACE_WEIGHT) > spaceInARow) {
-        tile = 0;
+
+      line.push(tile);
+      if (tile === 1) {
+        blocksInARow += 1;
+        spacesInARow = 0;
       } else {
-        tile = 1;
+        spacesInARow += 1;
+        blocksInARow = 0;
       }
-    } else {
-      tile = Math.floor(Math.random() * 2);
     }
-  } else {
-    tile = 0;
+    map.push(line);
   }
-  tile === 1 ? blockInARow++ : (blockInARow = 0);
-  tile === 0 ? spaceInARow++ : (spaceInARow = 0);
-  return tile;
-};
 
-const isSpawn = (i: number, j: number) => {
-  if (i === 3 || (i === 4 && j === 3) || j === 4) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
-const isUnderSpawn = (i: number, j: number) => {
-  if (i === 4 && j === 3) {
-    return true;
-  } else {
-    return false;
-  }
+  // Keep a safe floor beneath the spawn so new players never fall before input arrives.
+  map[5][3] = 1;
+  map[5][4] = 1;
+  map[6][3] = 1;
+  map[6][4] = 1;
+  return map;
 };

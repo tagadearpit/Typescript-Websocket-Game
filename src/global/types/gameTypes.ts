@@ -1,5 +1,3 @@
-// Core game type definitions
-
 export interface ControlsInterface {
   up: boolean;
   down: boolean;
@@ -24,18 +22,7 @@ export interface Player {
   vy: number;
 }
 
-export interface PlayerSprite {
-  forward: string[];
-  left: string[];
-  right: string[];
-}
-
 export interface Coin {
-  x: number;
-  y: number;
-}
-
-export interface Collidable {
   x: number;
   y: number;
 }
@@ -46,3 +33,18 @@ export interface Rect {
   height: number;
   width: number;
 }
+
+export interface GameSnapshot {
+  players: Player[];
+  coins: Coin[];
+  serverTime: number;
+}
+
+export interface HudState {
+  players: Player[];
+  currentPlayer?: Player;
+  coins: number;
+  connection: "connecting" | "connected" | "reconnecting" | "error";
+}
+
+export type ControlsKey = keyof ControlsInterface;
