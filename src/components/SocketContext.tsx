@@ -5,9 +5,7 @@ const SocketContext = createContext<Socket | null>(null);
 
 export const useSocket = (): Socket => {
   const socket = useContext(SocketContext);
-  if (!socket) {
-    throw new Error("useSocket must be used inside SocketProvider");
-  }
+  if (!socket) throw new Error("useSocket must be used inside SocketProvider");
   return socket;
 };
 
@@ -39,6 +37,10 @@ const SocketProvider: React.FC<SocketProviderProps> = ({ name, colour, children 
           timeout: 10000,
         });
 
+        client.on("ping", (callback) => {
+          if (typeof callback === "function") callback();
+        });
+
         setSocket(client);
       } catch (error) {
         console.error("Unable to initialize game socket", error);
@@ -56,7 +58,6 @@ const SocketProvider: React.FC<SocketProviderProps> = ({ name, colour, children 
   }, [name, colour]);
 
   if (!socket) return null;
-
   return <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>;
 };
 
