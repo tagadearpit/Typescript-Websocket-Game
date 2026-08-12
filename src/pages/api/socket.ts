@@ -11,6 +11,7 @@ const PLAYER_SPEED = 8;
 const SPRINT_MULTIPLIER = 1.3;
 const COIN_SPAWN_RATE = 700;
 const MAX_COINS = 25;
+const INITIAL_COINS = 8;
 const JUMP_SPEED = -11;
 const MAX_DELTA_MS = 100;
 
@@ -49,7 +50,7 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
   server.io = io;
 
   let map: number[][] = [];
-  let block = 2;
+  let block = 1;
   let coins: Coin[] = [];
   let players: Player[] = [];
   let collidables: Array<{ x: number; y: number }> = [];
@@ -90,6 +91,31 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
     return false;
   };
 
+  const spawnCoin = () => {
+    if (coins.length >= MAX_COINS || !map.length) return false;
+
+    const freeCells: Coin[] = [];
+    for (let row = 0; row < map.length; row++) {
+      for (let col = 0; col < map[row].length; col++) {
+        if (map[row][col] !== 0) continue;
+        const x = col * TILE_SIZE;
+        const y = row * TILE_SIZE;
+        if (coins.some((coin) => coin.x === x && coin.y === y)) continue;
+        freeCells.push({ x, y });
+      }
+    }
+
+    if (!freeCells.length) return false;
+    coins.push(freeCells[Math.floor(Math.random() * freeCells.length)]);
+    return true;
+  };
+
+  const fillCoins = (targetCount: number) => {
+    while (coins.length < Math.min(targetCount, MAX_COINS) && spawnCoin()) {
+      // spawnCoin guarantees progress while a free map cell exists.
+    }
+  };
+
   const resetGame = () => {
     players.forEach((player) => {
       player.score = 0;
@@ -103,39 +129,29 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
 
     coins = [];
     map = randomMap();
-    block = Math.floor(Math.random() * 4) + 2;
+    block = Math.floor(Math.random() * 4) + 1;
     rebuildCollidables();
+    fillCoins(INITIAL_COINS);
     playerSocketMap.forEach((socket) => sendGameData(socket));
-  };
-
-  const spawnCoin = () => {
-    if (coins.length >= MAX_COINS || !map.length) return;
-
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const row = Math.floor(Math.random() * map.length);
-      const col = Math.floor(Math.random() * map[row].length);
-      if (map[row][col] !== 0) continue;
-      const x = col * TILE_SIZE;
-      const y = row * TILE_SIZE;
-      if (coins.some((coin) => coin.x === x && coin.y === y)) continue;
-      coins.push({ x, y });
-      return;
-    }
   };
 
   const startNewGame = () => {
     stopIntervals();
     if (!players.length) return;
-    const game = GameMode.CollectTheCoins;
-    console.log("Starting New Game:", GameMode[game]);
+    console.log("Starting New Game:", GameMode[GameMode.CollectTheCoins]);
     resetGame();
     lastUpdate = Date.now();
+
     intervals.push(setInterval(() => {
       const now = Date.now();
       tick(now - lastUpdate);
       lastUpdate = now;
     }, 1000 / TICK_RATE));
-    intervals.push(setInterval(spawnCoin, COIN_SPAWN_RATE));
+
+    intervals.push(setInterval(() => {
+      fillCoins(INITIAL_COINS);
+      if (coins.length < MAX_COINS) spawnCoin();
+    }, COIN_SPAWN_RATE));
   };
 
   const finishRound = (winner: Player) => {
@@ -213,15 +229,16 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
   };
 
   const pingPlayers = () => {
-    const startedAt = Date.now();
     playerSocketMap.forEach((socket, id) => {
+      const startedAt = Date.now();
       socket.emit("ping", () => {
         const player = players.find((item) => item.id === id);
         if (player) player.ping = Date.now() - startedAt;
       });
     });
   };
-  setInterval(pingPlayers, 5000);
+
+  const pingInterval = setInterval(pingPlayers, 5000);
 
   io.on("connection", (socket) => {
     const player: Player = {
@@ -240,15 +257,7 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
 
     playerSocketMap.set(socket.id, socket);
     players.push(player);
-    controlsMap.set(socket.id, {
-      up: false,
-      down: false,
-      left: false,
-      right: false,
-      jump: false,
-      respawn: false,
-      sprint: false,
-    });
+    controlsMap.set(socket.id, { up: false, down: false, left: false, right: false, jump: false, respawn: false, sprint: false });
 
     playerSocketMap.forEach((otherSocket, id) => {
       if (id !== player.id) otherSocket.emit("playerJoin", player.name);
@@ -285,6 +294,13 @@ const SocketHandler = (_req: NextApiRequest, res: NextApiResponseWithIO) => {
     if (players.length === 1) startNewGame();
     else sendGameData(socket);
   });
+
+  const shutdown = () => {
+    clearInterval(pingInterval);
+    stopIntervals();
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 
   res.status(200).end();
 };
