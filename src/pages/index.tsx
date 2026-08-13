@@ -19,6 +19,11 @@ const Home: NextPage = () => {
           content="A fast, real-time multiplayer coin collection arena built with Next.js and Socket.IO."
         />
         <meta name="theme-color" content="#070b2d" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+        />
+        <meta name="mobile-web-app-capable" content="yes" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       {!isCustomized ? (

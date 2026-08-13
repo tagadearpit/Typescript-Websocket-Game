@@ -23,3 +23,16 @@ The rebuilt page reduced the reported first-load JavaScript from the baseline 26
 ## Railway deployment notes
 
 The project uses the existing `npm run build` and `npm start` commands. Railway should retain `NODE_ENV=production` and health-check `/api/health`. The production smoke test follows the same lazy Socket.IO initialization path as the browser client by calling `/api/socket` before opening the WebSocket.
+
+## Mobile-only follow-up verification
+
+| Check | Result | Evidence |
+|---|---|---|
+| Mobile viewport metadata | Passed | A 390x844 emulated device reported `innerWidth: 390` and the expected `width=device-width` viewport content. |
+| Mobile control visibility | Passed | `.mobile-controls` computed to `display: grid` at the 390x844 viewport. |
+| Touch target sizing | Passed | All six controls were at least 52px high; the jump target was 88px wide. |
+| Touch packet delivery | Passed | A real emulated touch press on the right arrow produced a Socket.IO controls packet with `right: true`. |
+| Mobile visual layout | Passed | `verification/mobile-after.png` shows the two-row touch tray, visible arena, player labels, and coin sprites without covering the central playfield. |
+
+
+The final post-build verification was repeated against a freshly started production server after rebuilding. The HTTP/Socket.IO smoke test and the 390x844 touch-emulation test both passed on that clean server; the touch test again reported a visible grid tray and `rightControlSent: true`.

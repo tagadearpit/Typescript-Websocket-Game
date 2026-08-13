@@ -34,3 +34,15 @@ Final visual smoke setup: a fresh production page load rendered the redesigned c
 
 
 Final canvas performance sample passed: the active game render loop delivered 120 frames over 2.002 seconds, approximately 60 fps, while the live arena, scoreboard, generated sprites, and HUD were visible. No browser-side runtime error appeared during the measurement.
+
+
+## Mobile-only follow-up
+
+The mobile baseline screenshot at 390x844 showed the customization screen, but the repository had no viewport metadata, so real phones could retain a wide layout viewport and never match the `max-width: 767px` rules that display `.mobile-controls`.
+
+The mobile fix adds `width=device-width`, `initial-scale=1`, `viewport-fit=cover`, and disables accidental page scaling for the game. Touch controls now use pointer capture, global release cleanup, independent multi-touch tracking, a short guaranteed jump hold for quick taps, safe-area padding, dynamic viewport height, larger 52px targets, and an explicit mobile control tray layout.
+
+The automated 390x844 touchscreen test passed. The mobile panel computed to `display: grid` at x=10, y=700, width=370, height=134; all six buttons were at least 52px high; and a touch press on the right arrow produced a WebSocket controls packet with `right: true`. The resulting mobile screenshot is `verification/mobile-after.png`.
+
+
+The final isolated production-server mobile run also passed after the scoreboard stacking adjustment. At 390x844, the scoreboard menu pill and LIVE MATCH pill stayed at the top, the player and arena remained visible, and the two-row touch tray stayed anchored at the bottom with six reachable buttons. The fresh screenshot replaced `verification/mobile-after.png` and the right-arrow packet test remained true.

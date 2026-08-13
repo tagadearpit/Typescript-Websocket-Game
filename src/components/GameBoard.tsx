@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useSocket } from "./SocketContext";
@@ -126,12 +126,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ setIsCustomized }) => {
     };
   }, [socket]);
 
-  const handleControl = (
-    key: Parameters<InputManager["setTouchControl"]>[0],
-    value: boolean
-  ) => {
-    inputRef.current?.setTouchControl(key, value);
-  };
+  const handleControl = useCallback(
+    (key: Parameters<InputManager["setTouchControl"]>[0], value: boolean) => {
+      inputRef.current?.setTouchControl(key, value);
+    },
+    []
+  );
 
   const leaveGame = () => {
     socket?.disconnect();

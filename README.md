@@ -65,3 +65,9 @@ scripts/           Repeatable production smoke test
 ```
 
 The generated visual direction is recorded in `ASSETS.md`, while `PLAN.md`, `STRUCTURE.md`, and `MEMORY.md` document the rebuild decisions and verification criteria.
+
+## Mobile play
+
+The game now includes a mobile viewport declaration and a dedicated touch tray. On phones, hold the left, down, or right arrow to move; tap or hold **JUMP**; and use **DASH** or **RESET** as needed. The controls respect safe-area insets and use touch targets of at least 52px.
+
+For local mobile validation, run the production server, start Chromium with remote debugging and touch emulation at 390x844, then execute `python3 scripts/mobile_cdp_smoke.py`. The script verifies the mobile viewport, visible controls, tap-target sizes, and a real right-arrow control packet.

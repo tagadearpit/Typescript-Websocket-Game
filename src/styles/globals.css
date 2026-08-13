@@ -269,7 +269,9 @@ button {
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--navy-950);
 }
 .game-canvas {
@@ -644,6 +646,7 @@ kbd {
     font-size: 8px;
   }
   .scoreboard {
+    z-index: 3;
     top: 0;
     bottom: 0;
     left: 0;
@@ -662,6 +665,7 @@ kbd {
   }
   .mobile-menu-button {
     position: absolute;
+    z-index: 4;
     top: 16px;
     left: 16px;
     display: flex;
@@ -678,7 +682,8 @@ kbd {
     font-size: 16px;
   }
   .match-pill {
-    top: 16px;
+    z-index: 4;
+    top: max(16px, env(safe-area-inset-top));
     right: 16px;
     left: auto;
     padding: 9px 11px;
@@ -690,28 +695,33 @@ kbd {
   }
   .mobile-controls {
     position: absolute;
-    right: 12px;
-    bottom: 14px;
-    left: 12px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 10px;
+    z-index: 4;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    gap: 8px;
     padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
     border-radius: 18px;
-    background: rgba(6, 10, 39, 0.72);
+    background: rgba(6, 10, 39, 0.86);
   }
   .touch-cluster {
     display: flex;
-    gap: 7px;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
   }
   .touch-actions {
-    margin-left: auto;
+    margin-left: 0;
   }
   .touch-control {
-    min-width: 46px;
-    height: 42px;
-    padding: 0 9px;
+    min-width: 52px;
+    min-height: 52px;
+    padding: 0 10px;
     border: 1px solid rgba(132, 150, 255, 0.34);
     border-radius: 11px;
     background: rgba(27, 39, 112, 0.7);
@@ -719,13 +729,24 @@ kbd {
     font-size: 10px;
     font-weight: 850;
     letter-spacing: 0.06em;
+    z-index: 5;
     touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .touch-movement .touch-control {
-    min-width: 42px;
+    min-width: 52px;
     color: var(--cyan);
-    font-size: 22px;
+    font-size: 26px;
+  }
+  .touch-direction {
+    width: 52px;
+    padding: 0;
+  }
+  .touch-actions .touch-primary {
+    min-width: 88px;
   }
   .touch-control:active,
   .touch-primary {
@@ -734,7 +755,7 @@ kbd {
   }
   .scoreboard-backdrop {
     position: fixed;
-    z-index: -1;
+    z-index: 2;
     inset: 0;
     display: block;
     border: 0;
